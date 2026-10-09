@@ -1,0 +1,45 @@
+name: Package Sub2API images (linux/amd64)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Pull required linux/amd64 images
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull --platform linux/amd64 weishaw/sub2api:latest
+          docker pull --platform linux/amd64 postgres:18-alpine
+          docker pull --platform linux/amd64 redis:8-alpine
+          docker tag weishaw/sub2api:latest gaoce-offline/sub2api:20261009
+          docker tag postgres:18-alpine gaoce-offline/postgres:18-20261009
+          docker tag redis:8-alpine gaoce-offline/redis:8-20261009
+
+      - name: Export compressed Docker images
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker save \
+            gaoce-offline/sub2api:20261009 \
+            gaoce-offline/postgres:18-20261009 \
+            gaoce-offline/redis:8-20261009 \
+            | gzip -1 > sub2api-images-amd64.tar.gz
+          sha256sum sub2api-images-amd64.tar.gz > sub2api-images-amd64.tar.gz.sha256
+          ls -lh sub2api-images-amd64.tar.gz*
+
+      - name: Upload image bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: sub2api-images-amd64
+          path: |
+            sub2api-images-amd64.tar.gz
+            sub2api-images-amd64.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 3
